@@ -412,5 +412,3 @@ Today you learned:
 - Common Linux permission troubleshooting scenarios
 
 ---
-
-# End of Notes
