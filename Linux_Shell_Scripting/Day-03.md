@@ -320,6 +320,3 @@ Today you learned:
 - Why `./script.sh` is required to execute scripts from the current directory
 - The difference between `-exec ... \;`, `-exec ... +`, and `xargs`
 
----
-
-# End of Day 3
