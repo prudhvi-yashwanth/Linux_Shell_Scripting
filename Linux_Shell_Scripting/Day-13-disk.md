@@ -896,6 +896,8 @@ sudo mount -a
 ```
 
 after editing `/etc/fstab` and before rebooting.
+
+---
 8. Never blindly delete large files on production servers. Check log rotation, retention policies, application behaviour, and whether the files are safe to remove.
 
 ---
