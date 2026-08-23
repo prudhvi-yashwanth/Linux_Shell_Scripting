@@ -1,116 +1,72 @@
-# Linux - Day 17: SSH, SSH Keys, and Secure Remote Access
+## SSH (Secure Shell)
 
-## Overview
+SSH (**Secure Shell**) is used to securely connect to and manage a remote machine.
 
-**SSH (Secure Shell)** is used to securely connect to and manage a remote Linux system over a network.
+It commonly uses **public-key authentication**, where two mathematically related keys are used:
 
-Example:
+- **Private key** → Stays on your machine. Never share it.
+- **Public key** → Can be shared and is stored on the remote server.
 
-```bash
-ssh ubuntu@192.168.1.50
-```
+The private key is **never sent to the server**.
 
-SSH is commonly used by DevOps Engineers for:
-
-- Connecting to Linux servers
-- Managing cloud VMs
-- Troubleshooting production systems
-- Running remote commands
-- Secure file transfers
-- Server automation
-
----
-
-# 1. How SSH Authentication Works
-
-SSH commonly uses **public-key authentication**.
-
-Two mathematically related keys are generated:
+The basic authentication flow is:
 
 ```text
-Private Key
+Your Machine
     │
-    └── Stays on your machine
-        Never share it
-
-Public Key
+    │ SSH connection
+    ▼
+Remote Server
     │
-    └── Can be copied to servers
-```
-
-Example:
-
-```text
-Your Laptop
-│
-├── Private Key
-│
-└── Public Key
-          │
-          ▼
-      Remote Server
-      ~/.ssh/authorized_keys
-```
-
-When you connect:
-
-```text
-Client
-  │
-  │ Proves it owns the matching private key
-  ▼
-Server
-  │
-  │ Checks public key
-  ▼
+    │ Cryptographic challenge
+    ▼
+Your Machine
+    │
+    │ Proves it has the matching private key
+    ▼
+Remote Server
+    │
+    ▼
 Authentication Successful
 ```
 
-The private key is **not sent to the server**.
-
-The server only needs your public key.
+The server stores your public key and verifies that the client has the corresponding private key.
 
 ---
 
-# 2. SSH Key Pair
+## SSH Key Pair
 
-A typical Ed25519 key pair is:
+The default Ed25519 key pair is:
 
-```text
+```bash
 ~/.ssh/id_ed25519
 ```
 
-Private key:
+This is the **private key**.
 
-```text
-~/.ssh/id_ed25519
-```
-
-Public key:
-
-```text
+```bash
 ~/.ssh/id_ed25519.pub
 ```
 
-### Important
+This is the **public key**.
+
+Remember:
 
 ```text
-Private key
+id_ed25519
+→ PRIVATE KEY
 → Never share
-→ Never upload to GitHub
-→ Never paste into chat
-→ Never copy unnecessarily to servers
 
-Public key
+id_ed25519.pub
+→ PUBLIC KEY
 → Safe to share
-→ Stored on the server
 ```
 
 ---
 
-# 3. Generate an SSH Key Pair
+## Generate an SSH Key
 
-Recommended command:
+Use:
 
 ```bash
 ssh-keygen -t ed25519 -C "your_email@example.com"
@@ -118,112 +74,72 @@ ssh-keygen -t ed25519 -C "your_email@example.com"
 
 ### Options
 
-| Option | Meaning |
-|--------|---------|
-| `-t ed25519` | Uses the Ed25519 key type |
-| `-C` | Adds a comment to identify the key |
+```text
+-t ed25519
+→ Specifies the Ed25519 key type.
 
-Ed25519 is a modern and efficient SSH key type and is generally preferred over older RSA configurations when supported.
+-C "comment"
+→ Adds a label to the key.
+```
 
----
+The comment is only for identification and does not affect the cryptographic security of the key.
 
-# 4. Generate a Key Without a Comment
+> **Correction:** The command is `ssh-keygen`, not `ssh-keygen` with a missing `k`.
 
-You can also run:
+You can also simply run:
 
 ```bash
 ssh-keygen -t ed25519
 ```
 
-During the process, SSH asks:
+---
+
+## Where to Save the Key
+
+When prompted:
 
 ```text
 Enter file in which to save the key:
 ```
 
-The default is usually:
+The default is:
 
 ```text
 ~/.ssh/id_ed25519
 ```
 
-For a single main SSH key, the default location is usually fine.
+For a normal setup, the default location is fine.
+
+If you manage multiple servers or environments, separate keys can be used:
+
+```text
+~/.ssh/id_ed25519
+~/.ssh/aws-prod-key
+~/.ssh/dev-key
+```
 
 ---
 
-# 5. Passphrase
+## Passphrase
 
-SSH asks:
+When `ssh-keygen` asks for a passphrase, it is recommended to set one.
 
-```text
-Enter passphrase:
-```
-
-It is recommended to set a strong passphrase for the private key.
-
-The passphrase protects the private key **at rest**.
-
-For example:
+The passphrase protects the private key if someone gets access to the key file.
 
 ```text
-Laptop stolen
-     │
-     ▼
-Attacker gets private key
-     │
-     ▼
-Passphrase still required
+Private Key
+      │
+      ▼
+Protected with passphrase
 ```
 
-Without the passphrase:
-
-```text
-Private key file
-     │
-     ▼
-Potentially usable by attacker
-```
-
-> **Important:** A passphrase is not the same thing as the server login password. It protects your local private key.
+Without the passphrase, a stolen encrypted private key is much harder to use.
 
 ---
 
-# 6. SSH Key Files
+## Copy the Public Key to the Server
 
-After generating the key:
-
-```bash
-ls -la ~/.ssh/
-```
-
-You should see:
-
-```text
-id_ed25519
-id_ed25519.pub
-```
-
-Check the public key:
-
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
-
-Do **not** use:
-
-```bash
-cat ~/.ssh/id_ed25519
-```
-
-and share the output.
-
-That is the private key.
-
----
-
-# 7. Copy the Public Key to the Server
-
-The easiest way is:
+The easiest method is:
 
 ```bash
 ssh-copy-id username@server_ip
@@ -245,34 +161,27 @@ on the remote server.
 
 ---
 
-# 8. Manual Method When `ssh-copy-id` Is Not Available
+## Manual Public Key Copy
 
-You can use:
+If `ssh-copy-id` is not available:
 
 ```bash
 cat ~/.ssh/id_ed25519.pub | ssh username@server_ip \
-  "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
-```
-
-Example:
-
-```bash
-cat ~/.ssh/id_ed25519.pub | ssh ubuntu@192.168.1.50 \
-  "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 ```
 
 This:
 
 1. Reads your public key.
-2. Connects to the server.
-3. Creates `~/.ssh` if required.
+2. Connects to the remote server.
+3. Creates the `.ssh` directory if it does not exist.
 4. Appends the public key to `authorized_keys`.
 
 ---
 
-# 9. Connect Using SSH
+## Connect to the Server
 
-After the public key is installed:
+Once the public key has been added:
 
 ```bash
 ssh username@server_ip
@@ -284,27 +193,33 @@ Example:
 ssh ubuntu@192.168.1.50
 ```
 
-SSH will use the appropriate private key if it can find it through the default identity settings or SSH configuration.
+If your private key has a passphrase, SSH may ask for that passphrase.
 
-If the private key is protected by a passphrase, SSH may ask for that passphrase.
+Using `ssh-agent` can avoid repeated passphrase prompts.
 
 ---
 
-# 10. SSH Configuration File
+## Connect Using a Specific Private Key
 
-When managing multiple servers, remembering:
+When you have multiple keys:
 
-- Hostnames
-- IP addresses
-- Usernames
-- Ports
-- Identity files
+```bash
+ssh -i ~/.ssh/aws-prod-key.pem ec2-user@server_ip
+```
 
-becomes difficult.
+The `-i` option specifies the private key.
 
-The SSH configuration file solves this problem.
+Example:
 
-Create:
+```bash
+ssh -i ~/.ssh/aws-prod-key.pem ec2-user@54.123.45.67
+```
+
+---
+
+## SSH Config
+
+When managing multiple servers, use:
 
 ```bash
 vim ~/.ssh/config
@@ -326,7 +241,7 @@ Host aws-prod
     IdentityFile ~/.ssh/aws-prod-key.pem
 ```
 
-Now you can connect using:
+Now you can simply use:
 
 ```bash
 ssh devops-lab
@@ -338,50 +253,43 @@ or:
 ssh aws-prod
 ```
 
-Instead of:
+instead of typing the complete connection details every time.
+
+---
+
+## Real-Time Scenario
+
+Suppose you manage 10 servers with different:
+
+- IP addresses
+- Usernames
+- Ports
+- Private keys
+
+Without SSH config, you need to remember all of them.
+
+With:
+
+```text
+~/.ssh/config
+```
+
+you can create short names:
 
 ```bash
-ssh -i ~/.ssh/aws-prod-key.pem ec2-user@ec2-xx-xxx-xxx-xxx.compute.amazonaws.com
-```
-
----
-
-# 11. Why `~/.ssh/config` Is Useful
-
-Suppose you manage 10 servers.
-
-Without SSH config:
-
-```text
-Different IPs
-Different usernames
-Different keys
-Different ports
-```
-
-With SSH config:
-
-```text
 ssh dev
 ssh staging
-ssh prod
-ssh database
+ssh aws-prod
+ssh db-prod
 ```
 
-It makes SSH access:
-
-- Easier
-- Cleaner
-- Less error-prone
-- Easier to maintain
+This makes SSH access easier and reduces configuration mistakes.
 
 ---
 
-# 12. `ssh-agent`
+## SSH Agent
 
-`ssh-agent` is a process that securely keeps decrypted private keys available in memory for the current session.
-
-It helps you avoid entering the private-key passphrase repeatedly.
+`ssh-agent` stores unlocked private keys in memory so SSH does not ask for the key passphrase every time.
 
 Start the agent:
 
@@ -389,7 +297,7 @@ Start the agent:
 eval "$(ssh-agent -s)"
 ```
 
-Add your private key:
+Add your key:
 
 ```bash
 ssh-add ~/.ssh/id_ed25519
@@ -397,19 +305,34 @@ ssh-add ~/.ssh/id_ed25519
 
 You enter the passphrase once.
 
-After that, SSH can use the loaded key without repeatedly asking for the passphrase during that agent session.
+After that, during the agent's lifetime:
+
+```text
+ssh command
+    │
+    ▼
+ssh-agent
+    │
+    ▼
+Unlocked private key
+    │
+    ▼
+Server authentication
+```
+
+> **Correction:** The correct command is `ssh-agent`, not `ssh-agnet`.
 
 ---
 
-# 13. Check Keys Loaded into `ssh-agent`
+## Check Keys Loaded in SSH Agent
 
 ```bash
 ssh-add -l
 ```
 
-This lists the identities currently loaded into the agent.
+This shows the keys currently loaded in the agent.
 
-To remove all keys from the agent:
+Remove all loaded keys:
 
 ```bash
 ssh-add -D
@@ -417,205 +340,226 @@ ssh-add -D
 
 ---
 
-# 14. macOS Keychain
+## macOS Keychain
 
-On macOS, you can store the key in the Apple Keychain.
-
-Use:
+On macOS, the private-key passphrase can be stored in the Keychain:
 
 ```bash
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 ```
 
-You can also configure `~/.ssh/config`:
+You can also add the following to:
+
+```text
+~/.ssh/config
+```
 
 ```sshconfig
 Host *
-    AddKeysToAgent yes
     UseKeychain yes
-    IdentityFile ~/.ssh/id_ed25519
+    AddKeysToAgent yes
 ```
 
-This can make SSH key usage more convenient across terminal sessions and reboots on macOS.
+Then:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+This can reduce repeated passphrase prompts across sessions.
 
 ---
 
-# 15. Server-Side SSH Configuration
+## Server-Side SSH Configuration
 
-On the server, SSH daemon configuration is usually stored in:
-
-```text
-/etc/ssh/sshd_config
-```
-
-Edit it carefully:
+On the Linux server, the SSH daemon configuration is commonly located at:
 
 ```bash
 sudo vim /etc/ssh/sshd_config
 ```
 
-Common security settings include:
+Common security settings are:
 
 ```text
-PubkeyAuthentication yes
 PasswordAuthentication no
+PubkeyAuthentication yes
 PermitRootLogin no
 ```
 
 ### Meaning
 
 ```text
-PubkeyAuthentication yes
-→ Allow SSH public-key authentication
-
 PasswordAuthentication no
-→ Disable password-based SSH authentication
+→ Disable password-based SSH authentication.
+
+PubkeyAuthentication yes
+→ Allow public-key authentication.
 
 PermitRootLogin no
-→ Do not allow direct root SSH login
+→ Do not allow direct SSH login as root.
 ```
+
+These settings should be used according to the server's access requirements and organisational security policy.
 
 ---
 
-# 16. Important Production Safety Rule
+## Important: Do Not Lock Yourself Out
 
-Never disable password authentication before confirming that key-based authentication works.
+Before changing:
 
-Use this sequence:
+```bash
+/etc/ssh/sshd_config
+```
+
+make sure key-based access is already working.
+
+Recommended process:
 
 ```text
-Existing SSH Session
-        │
-        ▼
-Configure SSH Key
-        │
-        ▼
+Current SSH Session
+       │
+       ▼
 Open Second SSH Session
-        │
-        ▼
-Test Key Authentication
-        │
-        ├── Failed → Fix Before Changing sshd_config
-        │
-        └── Successful
-                │
-                ▼
-        Update sshd_config
-                │
-                ▼
-        Validate Configuration
-                │
-                ▼
-        Reload / Restart SSH
+       │
+       ▼
+Test Key-Based Login
+       │
+       ▼
+Login Successful
+       │
+       ▼
+Modify sshd_config
+       │
+       ▼
+Validate Configuration
+       │
+       ▼
+Restart SSH
+       │
+       ▼
+Test New Connection Again
 ```
 
-This prevents accidentally locking yourself out.
+Do not close your original working session until the new configuration is confirmed.
 
 ---
 
-# 17. Validate SSH Configuration
+## Validate SSH Configuration
 
-Before restarting the SSH daemon, validate the configuration.
-
-On many Linux systems:
+Before restarting the SSH service:
 
 ```bash
 sudo sshd -t
 ```
 
-If there is no output, the configuration is generally valid.
+If there is no output, the configuration syntax is normally valid.
 
-Only after validation should you reload/restart SSH.
+Then restart the SSH service.
 
-For systemd-based systems:
-
-```bash
-sudo systemctl reload ssh
-```
-
-or, if reload is not supported:
+Depending on the Linux distribution:
 
 ```bash
 sudo systemctl restart ssh
 ```
 
-The exact service name may be:
+or:
 
-```text
-ssh
+```bash
+sudo systemctl restart sshd
+```
+
+Check the service:
+
+```bash
+sudo systemctl status ssh
 ```
 
 or:
 
-```text
-sshd
-```
-
-depending on the distribution.
-
-Check:
-
 ```bash
-systemctl status ssh
+sudo systemctl status sshd
 ```
 
 ---
 
-# 18. SSH File Permissions
+## SSH File Permissions
 
-SSH is sensitive to incorrect permissions.
+Correct permissions are important for SSH key authentication.
 
-Typical permissions are:
+### `.ssh` Directory
 
 ```bash
 chmod 700 ~/.ssh
+```
+
+### `authorized_keys`
+
+```bash
 chmod 600 ~/.ssh/authorized_keys
+```
+
+### Private Key
+
+```bash
 chmod 600 ~/.ssh/id_ed25519
+```
+
+### Public Key
+
+```bash
 chmod 644 ~/.ssh/id_ed25519.pub
 ```
 
-### Meaning
+Recommended:
 
 ```text
-~/.ssh
-→ Owner only: read/write/execute
-
-authorized_keys
-→ Owner only: read/write
-
-Private key
-→ Owner only: read/write
-
-Public key
-→ Owner can read/write; others can read
+~/.ssh/
+    │
+    ├── 700  directory
+    ├── 600  id_ed25519
+    ├── 644  id_ed25519.pub
+    └── 600  authorized_keys
 ```
-
-> **Important:** Exact acceptable permissions can depend on SSH configuration and platform, but overly permissive private keys will normally be rejected for security reasons.
 
 ---
 
-# 19. SSH Key Rotation
+## SSH Key Rotation
 
 SSH keys should be rotated according to your organisation's security policy.
 
-A fixed interval such as **90 to 180 days** may be appropriate in some environments, but there is no universal SSH requirement for this exact interval.
+Do not treat:
 
-The important principle is:
+```text
+90 days
+180 days
+```
 
-> **Rotate keys without removing the currently working key until the new key has been tested.**
+as universal requirements.
+
+The rotation period depends on:
+
+- Security policy
+- Compliance requirements
+- Risk level
+- Environment
+- Type of access
+
+The most important principle is:
+
+> **Always add and test the new key before removing the old key.**
 
 ---
 
-# 20. Safe SSH Key Rotation
+## Safe SSH Key Rotation
 
-## Step 1: Generate a New Key
+### Step 1 - Generate a New Key
 
-Do not delete the old key yet.
+Do not delete the old key.
 
 ```bash
 ssh-keygen -t ed25519 \
   -f ~/.ssh/id_ed25519_new \
-  -C "rotated $(date +%Y%m%d)"
+  -C "rotated-$(date +%Y%m%d)"
 ```
 
 This creates:
@@ -625,9 +569,11 @@ This creates:
 ~/.ssh/id_ed25519_new.pub
 ```
 
+The comment contains the rotation date.
+
 ---
 
-# Step 2: Add the New Public Key
+## Step 2 - Add the New Public Key
 
 Copy the new public key to the server:
 
@@ -637,34 +583,34 @@ ssh-copy-id \
   username@server_ip
 ```
 
-The server now has both keys:
+The server now has:
 
 ```text
-authorized_keys
-│
-├── Old public key
-└── New public key
+Old Public Key
+New Public Key
 ```
+
+Both can be used temporarily.
 
 ---
 
-# Step 3: Test the New Key
+## Step 3 - Test the New Key
 
-Open a **new SSH session**:
+Open a fresh SSH session:
 
 ```bash
 ssh -i ~/.ssh/id_ed25519_new username@server_ip
 ```
 
-Confirm that authentication works.
+Confirm that login works successfully.
 
-Do not remove the old key yet.
+Do not remove the old key until this test passes.
 
 ---
 
-# Step 4: Remove the Old Key
+## Step 4 - Remove the Old Public Key
 
-Only after the new key works, connect to the server:
+After confirming the new key works:
 
 ```bash
 ssh username@server_ip
@@ -673,47 +619,37 @@ ssh username@server_ip
 Edit:
 
 ```bash
-vim ~/.ssh/authorized_keys
+nano ~/.ssh/authorized_keys
 ```
 
-Remove the old public key line.
+Remove only the old public-key entry.
 
-Now:
-
-```text
-authorized_keys
-│
-└── New public key
-```
+Keep the new key.
 
 ---
 
-# Step 5: Replace the Local Default Key
+## Step 5 - Replace the Local Key
 
-After confirming the new key is working:
+After confirming everything is working:
 
 ```bash
 mv ~/.ssh/id_ed25519_new ~/.ssh/id_ed25519
 mv ~/.ssh/id_ed25519_new.pub ~/.ssh/id_ed25519.pub
 ```
 
-Then fix permissions:
+Then verify:
 
 ```bash
-chmod 600 ~/.ssh/id_ed25519
-chmod 644 ~/.ssh/id_ed25519.pub
+ssh username@server_ip
 ```
 
 ---
 
-# 21. The Key Rotation Principle
+## Key Rotation Principle
 
-Always maintain a working access path before removing the old one.
+Always follow:
 
 ```text
-Old Key Working
-      │
-      ▼
 Generate New Key
       │
       ▼
@@ -722,107 +658,73 @@ Add New Public Key
       ▼
 Test New Key
       │
-      ├── Failed → Keep Old Key
+      ▼
+Confirm Access
       │
-      └── Successful
-             │
-             ▼
-       Remove Old Key
-             │
-             ▼
-       Replace Local Key
+      ▼
+Remove Old Public Key
 ```
 
-This avoids accidental lockouts.
+Never do:
+
+```text
+Remove Old Key
+      │
+      ▼
+Generate New Key
+      │
+      ▼
+Try to Connect
+```
+
+because one mistake can result in losing access to the server.
 
 ---
 
-# 22. Useful SSH Commands
+## SSH Troubleshooting
 
-```bash
-# Generate Ed25519 key
-ssh-keygen -t ed25519
+### Verbose Mode
 
-# Copy public key to server
-ssh-copy-id username@server_ip
-
-# Connect to server
-ssh username@server_ip
-
-# Connect using a specific key
-ssh -i ~/.ssh/id_ed25519 username@server_ip
-
-# Start SSH agent
-eval "$(ssh-agent -s)"
-
-# Add key to agent
-ssh-add ~/.ssh/id_ed25519
-
-# List loaded keys
-ssh-add -l
-
-# Remove all keys from agent
-ssh-add -D
-
-# Validate sshd configuration
-sudo sshd -t
-
-# Check SSH service
-sudo systemctl status ssh
-
-# View SSH logs on systemd systems
-sudo journalctl -u ssh
-```
-
----
-
-# 23. SSH Troubleshooting
-
-Use verbose mode when SSH authentication fails:
+For SSH authentication problems:
 
 ```bash
 ssh -v username@server_ip
 ```
 
-For more detailed output:
+For more detailed debugging:
 
 ```bash
 ssh -vvv username@server_ip
 ```
 
-This helps identify issues such as:
+This helps identify:
 
-- Wrong username
-- Wrong private key
-- Permission problems
-- Authentication method problems
-- SSH configuration problems
-- Network connectivity problems
+- Which key SSH is trying
+- Authentication methods
+- SSH config issues
+- Permission issues
+- Host key problems
+- Server-side authentication failures
 
 ---
 
-# 24. Check Server's `authorized_keys`
-
-On the server:
+## Check SSH Service
 
 ```bash
-cat ~/.ssh/authorized_keys
+sudo systemctl status ssh
 ```
 
-Confirm that the correct public key exists.
-
-Check permissions:
+or:
 
 ```bash
-ls -ld ~/.ssh
-ls -l ~/.ssh/authorized_keys
+sudo systemctl status sshd
 ```
 
 ---
 
-# 25. Check SSH Server Logs
+## Check SSH Logs
 
-Depending on the Linux distribution, SSH logs may be available through:
+On systemd-based Linux systems:
 
 ```bash
 sudo journalctl -u ssh
@@ -834,142 +736,298 @@ or:
 sudo journalctl -u sshd
 ```
 
-For live logs:
-
-```bash
-sudo journalctl -u ssh -f
-```
-
-These logs can reveal authentication failures.
-
----
-
-# 26. Common SSH Problems
-
-| Problem | Things to Check |
-|---------|-----------------|
-| Permission denied | Username, key, `authorized_keys`, permissions |
-| Connection timed out | Network, firewall, security groups, routing |
-| Connection refused | SSH service, port, firewall |
-| Wrong key | `IdentityFile`, `ssh-add`, `authorized_keys` |
-| Key ignored | Private key permissions / server SSH configuration |
-| Password rejected | PasswordAuthentication setting |
-| Root login denied | `PermitRootLogin` |
-| Cannot connect after config change | `sshd -t`, second SSH session, SSH logs |
-
----
-
-# 27. DevOps Real-World Example
-
-Suppose you manage:
+Depending on the Linux distribution, authentication logs may also be available in:
 
 ```text
-Development Server
-Staging Server
-Production Server
-Database Server
+/var/log/auth.log
 ```
 
-You can define:
+or:
 
-```sshconfig
-Host dev
-    HostName 10.0.0.10
-    User ubuntu
-    IdentityFile ~/.ssh/id_ed25519
-
-Host staging
-    HostName 10.0.0.20
-    User ubuntu
-    IdentityFile ~/.ssh/id_ed25519
-
-Host prod
-    HostName 10.0.0.30
-    User ubuntu
-    IdentityFile ~/.ssh/prod-key
-
-Host database
-    HostName 10.0.0.40
-    User dbadmin
-    Port 2222
-    IdentityFile ~/.ssh/db-key
+```text
+/var/log/secure
 ```
-
-Now:
-
-```bash
-ssh dev
-ssh staging
-ssh prod
-ssh database
-```
-
-This is much easier than remembering every server's complete SSH command.
 
 ---
 
-# 28. Security Best Practices
+## Common SSH Errors
 
-- Use Ed25519 keys where supported.
-- Protect private keys with strong passphrases.
-- Never share private keys.
-- Never commit private keys to Git.
-- Prefer key-based authentication over passwords for server access.
-- Disable direct root SSH login where appropriate.
-- Disable password authentication only after testing key access.
-- Keep `authorized_keys` and private-key permissions restrictive.
-- Rotate keys according to organisational policy.
-- Remove old keys after verifying replacement access.
-- Use `ssh-agent` or the platform keychain instead of repeatedly entering passphrases.
-- Use network controls such as firewalls and security groups in addition to SSH authentication.
+| Error | Common Cause |
+|-------|--------------|
+| `Permission denied (publickey)` | Wrong key, username, permissions, or public key not installed |
+| `Connection refused` | SSH service is not listening or the port is blocked |
+| `Connection timed out` | Network, firewall, security group, or routing problem |
+| `No route to host` | Network routing issue |
+| `Host key verification failed` | Problem with the known host entry |
+| Private key ignored | Incorrect key path or private-key permissions |
 
 ---
 
-# Quick Revision
+## SSH Security Best Practices
+
+```text
+Use Ed25519 keys
+        │
+        ▼
+Protect private keys with passphrases
+        │
+        ▼
+Use ssh-agent / OS keychain
+        │
+        ▼
+Disable password authentication when appropriate
+        │
+        ▼
+Disable direct root login
+        │
+        ▼
+Use least-privilege user accounts
+        │
+        ▼
+Protect ~/.ssh permissions
+        │
+        ▼
+Rotate keys according to security policy
+        │
+        ▼
+Monitor SSH authentication logs
+```
+
+---
+
+## Quick Revision
 
 ```text
 SSH
-→ Secure remote access
+→ Secure remote access.
 
 Private Key
-→ Stays on your machine
+→ Stays on your machine.
+→ Never share it.
 
 Public Key
-→ Stored on the server
-
-authorized_keys
-→ Contains allowed public keys
+→ Stored on the server.
+→ Safe to share.
 
 ssh-keygen
-→ Generates SSH keys
+→ Generate SSH keys.
 
 ssh-copy-id
-→ Copies public key to server
+→ Copy public key to a server.
 
-ssh
-→ Connects to remote server
-
-~/.ssh/config
-→ Simplifies SSH connection configuration
+authorized_keys
+→ Contains public keys allowed to log in.
 
 ssh-agent
-→ Keeps unlocked keys available in memory
+→ Stores unlocked keys in memory.
+
+~/.ssh/config
+→ Simplifies SSH configuration.
 
 sshd_config
-→ SSH server configuration
+→ Controls SSH server settings.
 
 sshd -t
-→ Validate SSH server configuration
+→ Tests SSH server configuration.
 
 ssh -v
-→ Troubleshoot SSH connection
+→ Debug SSH connection problems.
 
-Key Rotation
-→ Add new key → Test → Remove old key
+chmod 700 ~/.ssh
+→ Protect SSH directory.
+
+chmod 600 ~/.ssh/authorized_keys
+→ Protect authorized keys.
+
+chmod 600 ~/.ssh/id_ed25519
+→ Protect private key.
+
+chmod 644 ~/.ssh/id_ed25519.pub
+→ Protect public key appropriately.
 ```
 
 ---
 
-# Interview Answer
+## Interview Answer
 
-> **"SSH is used for secure remote access to Linux systems. With public-key authentication, I generate a private and public key pair. The private key stays on my machine, while the public key is added to the server's `~/.ssh/authorized_keys`. During authentication, the server verifies that I possess the matching private key without receiving the private key itself. For multiple servers, I use `~/.ssh/config` to define aliases, usernames, ports, and identity files. I also use `ssh-agent` to avoid entering the private-key passphrase repeatedly. On production servers, I prefer key-based authentication, disable direct root login, and disable password authentication only after verifying key-based access from a separate SSH session. During key rotation, I always add and test the new key before removing the old one."**
+> **"SSH provides secure remote access to Linux servers. With key-based authentication, we generate a private and public key pair. The private key remains on the client machine, while the public key is stored on the server in `~/.ssh/authorized_keys`. During authentication, the client proves that it has the matching private key without sending that private key to the server. In production, I use Ed25519 keys with passphrases, `ssh-agent` or the OS keychain, disable password authentication where appropriate, disable direct root login, and maintain correct SSH permissions. Before changing `sshd_config`, I test a second SSH session and run `sshd -t` before restarting the SSH service. For key rotation, I always add and test the new key first and remove the old key only after confirming the new access works."**
+
+---
+
+
+
+# SSH (Secure Shell) — Notes
+
+SSH lets you securely connect to and control a remote machine. It uses **public-key cryptography**: two mathematically linked keys.
+
+- **Private key** — stays on your machine, never shared, never leaves
+- **Public key** — safe to share, goes on the servers you want to access
+
+**Core idea:** the server holds your public key. When you connect, your machine proves it holds the matching private key through a cryptographic challenge — the private key itself is never sent anywhere. The server never sees your private key, ever.
+
+---
+
+## 1. Generating a Key Pair
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+| Flag | Meaning |
+|------|---------|
+| `-t ed25519` | Key type — Ed25519 is modern, fast, and more secure than the older default RSA |
+| `-C "comment"` | A label (usually your email) to identify the key later — purely cosmetic, doesn't affect security |
+
+You can also generate it with just:
+
+```bash
+ssh-keygen -t ed25519
+```
+
+- **Where to save it** → default (`~/.ssh/id_ed25519`) is fine unless you're managing multiple keys
+- **Passphrase** → always set one. This encrypts your private key at rest — if your laptop is ever stolen, the key alone is useless without the passphrase
+
+```
+~/.ssh/id_ed25519       # PRIVATE key - never share, never leave your machine
+~/.ssh/id_ed25519.pub   # PUBLIC key  - safe to share, goes on servers
+```
+
+---
+
+## 2. Placing the Public Key on the Server
+
+```bash
+ssh-copy-id username@server_ip
+```
+
+This automatically appends your public key to the right file on the server (`~/.ssh/authorized_keys`) with correct permissions.
+
+If `ssh-copy-id` is unavailable, use this instead:
+
+```bash
+cat ~/.ssh/id_ed25519.pub | ssh username@server_ip "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Now connect from your current machine to the server:
+
+```bash
+ssh username@server_ip
+```
+
+If you set a passphrase, you'll be asked for it once per session.
+
+---
+
+## 3. Making It Convenient & Safe — `~/.ssh/config`
+
+Create the file:
+
+```bash
+vim ~/.ssh/config
+```
+
+```
+Host devops-lab
+    HostName 192.168.1.50
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+
+Host aws-prod
+    HostName ec2-xx-xxx-xxx-xxx.compute.amazonaws.com   # host IP or DNS address
+    User ec2-user                                        # login user
+    IdentityFile ~/.ssh/aws-prod-key.pem                  # path to your pem/identity file
+```
+
+Now you can simply run `ssh devops-lab` or `ssh aws-prod`.
+
+> **Scenario:** You manage 10 different servers with different usernames/keys/ports. This file turns all of that into short, memorable names — genuinely one of the highest-value habits to build early.
+
+---
+
+## 4. Setting Up `ssh-agent` — Avoid Retyping Your Passphrase
+
+`ssh-agent` lets you provide your passphrase once per session instead of every time you connect — similar in spirit to SSO.
+
+```bash
+eval "$(ssh-agent -s)"      # starts the agent for this terminal session
+ssh-add ~/.ssh/id_ed25519   # adds your key, asks for the passphrase ONCE
+```
+
+For the rest of this terminal session, `ssh` will use the already-unlocked key without re-prompting.
+
+**Mac-specific:** you can have this persist across reboots by adding the key to the Keychain:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+---
+
+## 5. Hardening the Server Side
+
+```bash
+sudo vim /etc/ssh/sshd_config
+```
+
+Change the following settings:
+
+```
+PasswordAuthentication no    # keys ONLY - no password login at all
+PermitRootLogin no           # never allow direct root login
+PubkeyAuthentication yes
+```
+
+```bash
+sudo systemctl restart sshd
+```
+
+> **Important:** before restarting, verify key-based login already works. Test it from a **second, separate SSH session** *before* you edit `sshd_config` — never edit this file as your only way in, in case something breaks and locks you out.
+
+After confirming key-based login works, lock down permissions on the `.ssh` folder and its contents:
+
+```bash
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/id_ed25519.pub
+```
+
+---
+
+## 6. Key Rotation
+
+Rotate your keys periodically — every 90 to 180 days.
+
+**The safe rotation sequence (never break access mid-rotation):**
+
+```bash
+# 1. Generate a NEW key pair (don't delete the old one yet)
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_new -C "rotated $(date +%Y%m%d)"
+```
+Creates a new key pair (private + public) with a comment noting the rotation date.
+
+```bash
+# 2. Add the NEW public key to the server, ALONGSIDE the old one
+ssh-copy-id -i ~/.ssh/id_ed25519_new.pub username@server_ip
+```
+Copies the new public key to the server without removing the old one.
+
+```bash
+# 3. Test the NEW key works, in a fresh session
+ssh -i ~/.ssh/id_ed25519_new username@server_ip
+```
+
+```bash
+# 4. ONLY once confirmed working, remove the OLD public key from the server
+ssh username@server_ip
+nano ~/.ssh/authorized_keys      # delete the old key's line
+```
+
+```bash
+# 5. Replace your local default key
+mv ~/.ssh/id_ed25519_new ~/.ssh/id_ed25519
+mv ~/.ssh/id_ed25519_new.pub ~/.ssh/id_ed25519.pub
+```
+
+> **Core principle:** always keep a working path back in **before** removing the old key.
