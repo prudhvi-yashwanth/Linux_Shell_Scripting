@@ -399,8 +399,6 @@ Prints:
 - The matching line
 - Three lines after
 
-> **Correction:** Your original command used `-C33`, but based on the description, `-C3` is the correct command.
-
 ---
 
 ## Case-Insensitive Search
